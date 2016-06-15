@@ -34,15 +34,19 @@ def main(argv):
     # Required arguments: input and output.
     parser.add_argument(
         "input_file",
-        help="Input txt/csv filename. If .txt, must be list of filenames.\
+        help="Input txt/csv/mat filename. If .txt, must be list of filenames.\
         If .csv, must be comma-separated file with header\
-        'filename, xmin, ymin, xmax, ymax'"
+        'filename, xmin, ymin, xmax, ymax.'"
     )
     parser.add_argument(
         "output_file",
         help="Output h5/csv filename. Format depends on extension."
     )
     # Optional arguments.
+    parser.add_argument(
+        "--mat_file",
+        help="Must contain all_windows as created by selective_search.m."
+    )
     parser.add_argument(
         "--model_def",
         default=os.path.join(pycaffe_dir,
@@ -99,6 +103,10 @@ def main(argv):
     )
     args = parser.parse_args()
 
+    mat_file = None
+    if args.mat_file:
+        mat_file = args.mat_file
+
     mean, channel_swap = None, None
     if args.mean_file:
         mean = np.load(args.mean_file)
@@ -140,6 +148,8 @@ def main(argv):
             for ix in inputs.index.unique()
         ]
         detections = detector.detect_windows(images_windows)
+    elif mat_file:
+        detections = detector.detect_selected_windows(inputs, mat_file)
     else:
         detections = detector.detect_selective_search(inputs)
     print("Processed {} windows in {:.3f} s.".format(len(detections),

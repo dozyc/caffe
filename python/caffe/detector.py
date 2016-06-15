@@ -83,7 +83,7 @@ class Detector(caffe.Net):
         for ix, window_in in enumerate(window_inputs):
             caffe_in[ix] = self.transformer.preprocess(in_, window_in)
         out = self.forward_all(**{in_: caffe_in})
-        predictions = out[self.outputs[0]].squeeze(axis=(2, 3))
+        predictions = out[self.outputs[0]].squeeze()
 
         # Package predictions with images and windows.
         detections = []
@@ -122,6 +122,12 @@ class Detector(caffe.Net):
         # Run windowed detection on the selective search list.
         return self.detect_windows(zip(image_fnames, windows_list))
 
+    def detect_selected_windows(self, image_fnames, mat_fname):
+        import selective_search_ijcv_with_python as selective_search
+        image_fnames = [os.path.abspath(f) for f in image_fnames]
+        windows_list = selective_search.import_windows(image_fnames, mat_fname)
+        return self.detect_windows(zip(image_fnames, windows_list))
+
     def crop(self, im, window):
         """
         Crop a window from the image for detection. Include surrounding context
@@ -137,7 +143,8 @@ class Detector(caffe.Net):
         crop: cropped window.
         """
         # Crop window from the image.
-        crop = im[window[0]:window[2], window[1]:window[3]]
+        # Input window coordinates may be fractional pixels, so we round to ensure integers
+        crop = im[int(window[0]):int(window[1]), int(window[2]):int(window[3])]
 
         if self.context_pad:
             box = window.copy()
@@ -171,10 +178,10 @@ class Detector(caffe.Net):
 
             # collect with context padding and place in input
             # with mean padding
-            context_crop = im[box[0]:box[2], box[1]:box[3]]
+            context_crop = im[int(box[0]):int(box[2]), int(box[1]):int(box[3])]
             context_crop = caffe.io.resize_image(context_crop, (crop_h, crop_w))
             crop = np.ones(self.crop_dims, dtype=np.float32) * self.crop_mean
-            crop[pad_y:(pad_y + crop_h), pad_x:(pad_x + crop_w)] = context_crop
+            crop[int(pad_y):int(pad_y + crop_h), int(pad_x):int(pad_x + crop_w)] = context_crop
 
         return crop
 
